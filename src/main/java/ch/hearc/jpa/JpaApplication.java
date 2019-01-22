@@ -106,7 +106,7 @@ public class JpaApplication {
 		
 	}
 	
-	@Transactional
+
 	private void testBureauEmployeeRelationShip() {
 		Employee e = new Employee();
 		e.setId(1L);
@@ -137,6 +137,8 @@ public class JpaApplication {
 		System.out.println(ba);
 		
 		System.out.println(c);
+
+		brepo.delete(ba);
 		
 	}
 	

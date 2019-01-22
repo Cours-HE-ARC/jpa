@@ -32,5 +32,5 @@ public class Bureau {
 		this.position = position;
 	}
 
-	
+
 }

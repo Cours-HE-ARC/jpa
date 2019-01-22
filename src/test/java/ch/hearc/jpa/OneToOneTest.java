@@ -11,13 +11,14 @@ import java.util.stream.IntStream;
 import javax.annotation.Resource;
 import javax.transaction.Transactional;
 
+import ch.hearc.jpa.entite.Employee;
+import ch.hearc.jpa.repository.*;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
@@ -27,10 +28,6 @@ import com.github.javafaker.Faker;
 import ch.hearc.jpa.entite.Adresse;
 import ch.hearc.jpa.entite.Bureau;
 import ch.hearc.jpa.entite.Personne;
-import ch.hearc.jpa.repository.AdresseRepository;
-import ch.hearc.jpa.repository.BureauRepository;
-import ch.hearc.jpa.repository.PersonnePagingSortingRepository;
-import ch.hearc.jpa.repository.PersonneRepository;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(
@@ -53,18 +50,86 @@ public class OneToOneTest {
 	
 	@Resource
     private BureauRepository bureauRepo;
+
+	@Resource
+	private EmployeeRepository empRepo;
      
     @Test
-    public void givenStudent_whenSave_thenGetOk() {
-        Bureau bureau = new Bureau();
-        bureau.setPosition("gauche");
-        bureau.setId(1L);
-        bureauRepo.save(bureau);
-        
-        assertTrue(true);
+    public void given_an_employye_when_assign_bureau_then_entity_persist() {
+		Employee emp = createEmployeeWithBureau();
+
+        Employee employee = empRepo.findById(1L).get();
+		System.out.println("Employe found: " + employee);
+
+		assertThat(employee).isNotNull();
+		assertThat(employee.getBureau()).isNotNull();
     }
-    
-    @Test
+
+	@Test
+	public void given_an_employee_when_not_assign_bureau_then_entity_persist() {
+
+		createEmployeWithoutBureau();
+
+		Employee employee = empRepo.findById(1L).get();
+		System.out.println("Employe found: " + employee);
+
+		assertThat(employee).isNotNull();
+		assertThat(employee.getBureau()).isNull();
+	}
+
+	@Test
+	public void given_an_employee_with_bureau_deletetd_then_entity_cascade_delete() {
+
+		Employee emp = createEmployeeWithBureau();
+
+		deleteBureau(emp);
+
+		assertThat(empRepo.findById(1L).isPresent()).isTrue();
+		assertThat(bureauRepo.findById(1L).isPresent()).isFalse();
+	}
+
+	@Test
+	public void given_an_employee_with_bureau_deletetd_then_only_parent_deleted() {
+
+		Employee emp = createEmployeeWithBureau();
+
+		empRepo.delete(emp);
+
+		assertThat(empRepo.findById(1L).isPresent()).isFalse();
+		assertThat(bureauRepo.findById(1L).isPresent()).isTrue();
+	}
+
+	@Transactional
+	Employee createEmployeeWithBureau() {
+		Bureau bureau = new Bureau();
+		bureau.setPosition("gauche");
+		bureau.setId(1L);
+		bureauRepo.save(bureau);
+
+		Employee emp = new Employee();
+		emp.setId(1L);
+		emp.setNom("Mickey Mouse");
+		emp.setBureau(bureau);
+		empRepo.save(emp);
+		return emp;
+	}
+
+
+
+	@Transactional
+	void createEmployeWithoutBureau() {
+		Employee emp = new Employee();
+		emp.setId(1L);
+		emp.setNom("Mickey Mouse");
+		empRepo.save(emp);
+	}
+
+	@Transactional
+	void deleteBureau(Employee emp) {
+		bureauRepo.delete(emp.getBureau());
+	}
+
+	@Test
     public void testPersonneEtAdresseStandardRepo() {
     	
     	persistRandomPersonnes(100);
@@ -93,13 +158,13 @@ public class OneToOneTest {
     	assertThat(page.getTotalPages()).isEqualTo(nbrePage);
     	assertThat(page.getSize()).isEqualTo(taillePage);
     	
-    	assertThat(page.getContent().size()).isEqualTo(100);
+    	assertThat(page.getContent().size()).isEqualTo(12);
     	page.forEach(System.out::println);
     }    
     
     
-    
-    private void persistRandomPersonnes(int number) {
+    @Transactional
+    void persistRandomPersonnes(int number) {
     	IntStream.range(0, number).forEach(action->{
 			
 			Personne p = testUtil.generatePersonne();
